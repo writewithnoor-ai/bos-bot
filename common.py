@@ -67,9 +67,12 @@ def fetch_crypto(sym: str, tf: str, limit: int | None = None) -> pd.DataFrame:
 def fetch_forex(sym: str, tf: str, limit: int | None = None) -> pd.DataFrame:
     if not TWELVE_KEY:
         raise RuntimeError("TWELVEDATA_API_KEY not set (needed for forex)")
+    n = limit or CANDLES
+    resample = tf == "3min"  # Twelve Data has no 3min candles: build them from 1min
     r = requests.get("https://api.twelvedata.com/time_series",
-                     params={"symbol": f"{sym[:3]}/{sym[3:]}", "interval": tf,
-                             "outputsize": limit or CANDLES, "timezone": "UTC",
+                     params={"symbol": f"{sym[:3]}/{sym[3:]}",
+                             "interval": "1min" if resample else tf,
+                             "outputsize": n * 3 if resample else n, "timezone": "UTC",
                              "apikey": TWELVE_KEY}, timeout=15)
     r.raise_for_status()
     j = r.json()
@@ -80,6 +83,9 @@ def fetch_forex(sym: str, tf: str, limit: int | None = None) -> pd.DataFrame:
     df = df.rename(columns=str.title).astype(float).sort_index()
     if "Volume" not in df:
         df["Volume"] = 0.0
+    if resample:
+        df = df.resample("3min").agg({"Open": "first", "High": "max", "Low": "min",
+                                      "Close": "last", "Volume": "sum"}).dropna()
     return df
 
 
@@ -161,5 +167,3 @@ def build_caption(a: Alert, sym: str, tf_label: str) -> str:
 def tg(method: str, **kw):
     r = requests.post(f"https://api.telegram.org/bot{TG_TOKEN}/{method}", timeout=30, **kw)
     r.raise_for_status()
-
-
