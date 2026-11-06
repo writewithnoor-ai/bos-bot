@@ -1,8 +1,12 @@
 {
   "watch": [
+    {"symbol": "BTCUSDT", "tf": "5"},
     {"symbol": "BTCUSDT", "tf": "15"},
-    {"symbol": "ETHUSDT", "tf": "15"},
-    {"symbol": "EURUSD", "tf": "60"}
+     {"symbol": "BTCUSDT", "tf": "3"}
+    {"symbol": "XAUUSDT", "tf": "5"},
+    {"symbol": "XAUUSD", "tf": "5"},
+    {"symbol": "XAUUSD", "tf": "15"},
+    {"symbol": "XAUUSD", "tf": "3"}
   ],
   "max_age_bars": 4,
   "settings": {
