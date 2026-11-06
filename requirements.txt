@@ -5,3 +5,5 @@ pandas
 mplfinance
 matplotlib
 python-dotenv
+six
+numpy
