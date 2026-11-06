@@ -1,0 +1,24 @@
+{
+  "watch": [
+    {"symbol": "BTCUSDT", "tf": "15"},
+    {"symbol": "ETHUSDT", "tf": "15"},
+    {"symbol": "EURUSD", "tf": "60"}
+  ],
+  "max_age_bars": 4,
+  "settings": {
+    "pivLen": 10,
+    "maxGap": 100,
+    "minLegAtr": 0.0,
+    "atrLen": 14,
+    "maxBars": 120,
+    "endBuf": 0.3,
+    "showBuy": true,
+    "showSell": true,
+    "ratios": [0.236, 0.5, 0.618, 0.66, 0.71, 0.786],
+    "entryRatio": 0.618,
+    "zoneEnd": 0.786,
+    "alertForm": true,
+    "alertZone": true,
+    "alertBos": false
+  }
+}
