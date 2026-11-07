@@ -36,6 +36,7 @@ class Alert(BaseModel):
     entry_r: float | None = None
     zone_r: float | None = None
     ratios: list[float] = []
+    plan: dict | None = None        # entries / SL / TPs / lots
 
 
 # TradingView interval -> (binance, twelvedata, seconds)
@@ -113,9 +114,11 @@ def render_chart(df: pd.DataFrame, a: Alert, sym: str, tf_label: str, secs: int)
                          volume=False, title=title, returnfig=True)
     ax = axes[0]
     ys = []
+    left = 0
     if a.origin is not None and a.ext is not None:
         oi, ei = locate(df, a.origin_t, secs), locate(df, a.ext_t, secs)
         start = oi if oi is not None else 0
+        left = max(0, start - 40)  # zoom in around the setup
         for r in a.ratios:
             y = lvl(a, r)
             ys.append(y)
@@ -125,8 +128,8 @@ def render_chart(df: pd.DataFrame, a: Alert, sym: str, tf_label: str, secs: int)
                 col, lw = "#66bb6a", 1.6
             else:
                 col, lw = "#9e9e9e", 0.8
-            ax.hlines(y, start, n + 4, colors=col, linewidths=lw, linestyles="--")
-            ax.text(n + 4.5, y, f"{r:g}", color=col, fontsize=8, va="center")
+            ax.hlines(y, start, n + 8, colors=col, linewidths=lw, linestyles="--")
+            ax.text(n + 8.4, y, f"{r:g}", color=col, fontsize=8, va="center")
         if oi is not None:
             ax.scatter([oi], [a.origin], s=45, color="#2962ff", zorder=5)
         if ei is not None:
@@ -136,15 +139,50 @@ def render_chart(df: pd.DataFrame, a: Alert, sym: str, tf_label: str, secs: int)
                        color="#26a69a" if bull else "#ef5350")
     else:  # plain BOS alert
         ys.append(a.price)
-        ax.hlines(a.price, 0, n + 4, colors="#2962ff", linewidths=1.2)
-    lo, hi = min([df["Low"].min()] + ys), max([df["High"].max()] + ys)
+        ax.hlines(a.price, 0, n + 8, colors="#2962ff", linewidths=1.2)
+    p = a.plan
+    if p:
+        d = 1 if bull else -1
+        top = p["tp2"] if bull else p["e1"]
+        bot = p["e1"] if bull else p["tp2"]
+        ax.fill_between([n, n + 7], bot, top, color="#26a69a", alpha=0.18, linewidth=0)
+        top = p["e1"] if bull else p["sl"]
+        bot = p["sl"] if bull else p["e1"]
+        ax.fill_between([n, n + 7], bot, top, color="#ef5350", alpha=0.18, linewidth=0)
+        for name, price, col in (("entry 1", p["e1"], "#4da3ff"), ("entry 2", p["e2"], "#4da3ff"),
+                                 ("SL", p["sl"], "#ef5350"), ("TP1", p["tp1"], "#26a69a"),
+                                 ("TP2", p["tp2"], "#26a69a")):
+            ys.append(price)
+            ax.hlines(price, n, n + 7, colors=col, linewidths=1.8)
+            ax.text(n + 0.3, price, name, color=col, fontsize=7, va="bottom")
+    vis = df.iloc[left:]
+    lo, hi = min([vis["Low"].min()] + ys), max([vis["High"].max()] + ys)
     pad = (hi - lo) * 0.04
     ax.set_ylim(lo - pad, hi + pad)
-    ax.set_xlim(-1, n + 9)
+    ax.set_xlim(left - 1, n + 14)
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=110, bbox_inches="tight")
     plt.close(fig)
     return buf.getvalue()
+
+
+def plan_caption(a: Alert, icon: str, head: str) -> str:
+    p = a.plan
+    title = f"{a.direction} signal" + (" - Entry 1 touched" if a.event == "touched" else "")
+    out = [f"{icon} {title}", head, "",
+           f"Entry 1: {p['e1']:.6g}  |  {p['lots1']:g} lots",
+           f"Entry 2: {p['e2']:.6g}  |  {p['lots2']:g} lots",
+           f"Stop loss: {p['sl']:.6g}",
+           f"TP1: {p['tp1']:.6g}",
+           f"TP2: {p['tp2']:.6g}", "",
+           f"Max loss (both entries filled, SL hit): {p['risk']:.0f} USDT",
+           f"Loss if only Entry 1 fills: {p['risk1']:.0f} USDT",
+           f"Profit if all closed at TP1: {p['pt1']:.0f} | at TP2: {p['pt2']:.0f} USDT"]
+    if p.get("low_size"):
+        out.append("Warning: size is below the minimum lot, check your risk.")
+    if a.event != "touched":
+        out.append("Levels may shift until Entry 1 is touched.")
+    return "\n".join(out)
 
 
 def build_caption(a: Alert, sym: str, tf_label: str) -> str:
@@ -153,6 +191,8 @@ def build_caption(a: Alert, sym: str, tf_label: str) -> str:
     head = f"{sym} · {tf_label}"
     if a.event == "bos":
         return f"{icon} {a.direction.title()} BOS\n{head}\nLevel: {a.price}"
+    if a.plan:
+        return plan_caption(a, icon, head)
     entry, zone = lvl(a, a.entry_r), lvl(a, a.zone_r)
     if a.event == "touched":
         return (f"{icon} {a.direction} setup: entry level touched\n{head}\n"
