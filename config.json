@@ -7,7 +7,7 @@
     {"symbol": "XAUUSD", "tf": "5"},
     {"symbol": "XAUUSD", "tf": "3"}
   ],
-  "max_age_bars": 6,
+  "max_age_minutes": 90,
   "settings": {
     "pivLen": 10,
     "maxGap": 100,
@@ -21,7 +21,22 @@
     "entryRatio": 0.618,
     "zoneEnd": 0.786,
     "alertForm": true,
-    "alertZone": true,
+    "alertZone": false,
     "alertBos": false
+  },
+  "trade": {
+    "risk_usd": 200,
+    "entry1": 0.618,
+    "entry2": 0.71,
+    "tp1": 0.5,
+    "tp2": 0.236,
+    "split": [1, 2],
+    "lot_step": 0.01,
+    "min_lot": 0.01,
+    "contract_size": {
+      "BTCUSDT": 1,
+      "XAUUSD": 100,
+      "default": 1
+    }
   }
 }
