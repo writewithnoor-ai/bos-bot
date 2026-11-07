@@ -194,7 +194,7 @@ def process(w, cfg, state, test=False):
         if k in sent_set:
             continue
         sent.append(k); sent_set.add(k)
-        if seeded and (n - 1 - e["bar"]) <= cfg.get("max_age_bars", 4):
+        if seeded and (n - 1 - e["bar"]) * secs <= cfg.get("max_age_minutes", 90) * 60:
             try:
                 send_event(df, e, cfg, sym, tfk, bin_tf, secs)
                 print(f"{key}: sent {e['type']} {e['dir']}")
