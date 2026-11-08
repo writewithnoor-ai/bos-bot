@@ -90,68 +90,6 @@ def fetch_forex(sym: str, tf: str, limit: int | None = None) -> pd.DataFrame:
     return df
 
 
-# Coinbase granularity (seconds) and optional resample rule per timeframe label
-CB_MAP = {"1m": (60, None), "3m": (60, "3min"), "5m": (300, None), "15m": (900, None),
-          "30m": (900, "30min"), "1h": (3600, None), "2h": (3600, "2h"),
-          "4h": (3600, "4h"), "1d": (86400, None)}
-CB_FACTOR = {None: 1, "3min": 3, "30min": 2, "2h": 2, "4h": 4}
-FIAT_OR_METAL = {"XAU", "XAG", "EUR", "GBP", "AUD", "NZD", "CAD", "CHF", "JPY", "USD"}
-
-
-def source_for(sym: str) -> str:
-    """binance (…USDT), coinbase (BTCUSD, ETHUSD…), twelve (gold, forex)."""
-    if sym.endswith(CRYPTO_QUOTES):
-        return "binance"
-    if len(sym) == 6 and sym[:3] in FIAT_OR_METAL:
-        return "twelve"
-    return "coinbase" if sym.endswith("USD") else "twelve"
-
-
-def fetch_coinbase(sym: str, tf: str, limit: int | None = None) -> pd.DataFrame:
-    if tf not in CB_MAP:
-        raise RuntimeError(f"Coinbase: unsupported timeframe {tf}")
-    gran, rs = CB_MAP[tf]
-    n = limit or CANDLES
-    need = n * CB_FACTOR[rs]
-    product = f"{sym[:-3]}-USD"
-    end = pd.Timestamp.now(tz="UTC").tz_localize(None) + pd.Timedelta(seconds=gran)
-    rows = []
-    for _ in range(16):  # Coinbase returns at most 300 candles per request
-        start = end - pd.Timedelta(seconds=gran * 300)
-        r = requests.get(f"https://api.exchange.coinbase.com/products/{product}/candles",
-                         params={"granularity": gran,
-                                 "start": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                                 "end": end.strftime("%Y-%m-%dT%H:%M:%SZ")},
-                         headers={"User-Agent": "bos-bot"}, timeout=15)
-        r.raise_for_status()
-        batch = r.json()
-        if not batch:
-            break
-        rows += batch
-        end = start
-        if len(rows) >= need:
-            break
-    if not rows:
-        raise RuntimeError(f"Coinbase returned no candles for {product}")
-    df = pd.DataFrame(rows, columns=["time", "Low", "High", "Open", "Close", "Volume"])
-    df.index = pd.to_datetime(df.pop("time"), unit="s")
-    df = df[~df.index.duplicated()].sort_index().astype(float)[["Open", "High", "Low", "Close", "Volume"]]
-    if rs:
-        df = df.resample(rs).agg({"Open": "first", "High": "max", "Low": "min",
-                                  "Close": "last", "Volume": "sum"}).dropna()
-    return df.tail(n)
-
-
-def fetch_any(sym: str, tfk: str, limit: int | None = None) -> pd.DataFrame:
-    bin_tf, td_tf, _ = TF_MAP[tfk]
-    src = source_for(sym)
-    if src == "binance":
-        return fetch_crypto(sym, bin_tf, limit)
-    if src == "coinbase":
-        return fetch_coinbase(sym, bin_tf, limit)
-    return fetch_forex(sym, td_tf, limit)
-
-
 def locate(df: pd.DataFrame, t_ms, secs):
     """Candle position nearest to a TradingView bar time, or None if off-screen."""
     if not t_ms:
