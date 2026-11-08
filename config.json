@@ -1,17 +1,13 @@
 {
   "watch": [
-    {"symbol": "BTCUSD", "tf": "15"},
-    {"symbol": "BTCUSD", "tf": "5"},
-    {"symbol": "BTCUSD", "tf": "3"},
+    {"symbol": "BTCUSDT", "tf": "15"},
+    {"symbol": "BTCUSDT", "tf": "5"},
+    {"symbol": "BTCUSDT", "tf": "3"},
     {"symbol": "XAUUSD", "tf": "15"},
     {"symbol": "XAUUSD", "tf": "5"},
     {"symbol": "XAUUSD", "tf": "3"}
   ],
   "max_age_minutes": 90,
-  "offsets": {
-    "BTCUSD": 0.0,
-    "XAUUSD": 0.0
-  },
   "settings": {
     "pivLen": 10,
     "maxGap": 100,
@@ -37,13 +33,6 @@
     "split": [1, 2],
     "lot_step": 0.01,
     "min_lot": 0.01,
-    "contract_size": {
-      "BTCUSDT": 1,
-      "XAUUSD": 100,
-      "default": 1,
-      "BTCUSD": 1
-    },
-    "track": true,
-    "shift_notify": 0.25
+    "contract_size": {"BTCUSDT": 1, "XAUUSD": 100, "default": 1}
   }
 }
